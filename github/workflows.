@@ -1,0 +1,436 @@
+Entername: Build APK
+on:
+  push:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+      - name: Generate Android project
+        run: |
+          P=app/src/main
+          J=$P/java/com/gameboost/app
+          rm -rf app
+          mkdir -p $J
+          cat > settings.gradle <<'EOF'
+          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+          dependencyResolutionManagement { repositories { google(); mavenCentral() } }
+          rootProject.name = "GameMode"
+          include ':app'
+          EOF
+          cat > build.gradle <<'EOF'
+          plugins { id 'com.android.application' version '8.5.2' apply false }
+          EOF
+          cat > gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx2g
+          android.useAndroidX=false
+          EOF
+          cat > app/build.gradle <<'EOF'
+          plugins { id 'com.android.application' }
+          android {
+            namespace 'com.gameboost.app'
+            compileSdk 34
+            defaultConfig {
+              applicationId 'com.gameboost.app'
+              minSdk 26
+              targetSdk 34
+              versionCode 1
+              versionName '1.0'
+            }
+            compileOptions {
+              sourceCompatibility JavaVersion.VERSION_17
+              targetCompatibility JavaVersion.VERSION_17
+            }
+          }
+          EOF
+          cat > $P/AndroidManifest.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+            <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+            <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
+            <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+            <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"/>
+            <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES"/>
+            <application android:label="وضع اللعب" android:icon="@android:drawable/ic_media_play"
+                android:theme="@android:style/Theme.Material.NoActionBar" android:supportsRtl="true">
+              <activity android:name=".MainActivity" android:exported="true">
+                <intent-filter>
+                  <action android:name="android.intent.action.MAIN"/>
+                  <category android:name="android.intent.category.LAUNCHER"/>
+                </intent-filter>
+              </activity>
+              <service android:name=".BlockVpn" android:exported="false" android:permission="android.permission.BIND_VPN_SERVICE">
+                <intent-filter><action android:name="android.net.VpnService"/></intent-filter>
+              </service>
+              <service android:name=".OverlayService" android:exported="false" android:foregroundServiceType="specialUse">
+                <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="game overlay with device stats"/>
+              </service>
+            </application>
+          </manifest>
+          EOF
+          cat > $J/MainActivity.java <<'EOF'
+          package com.gameboost.app;
+          import android.app.*;
+          import android.content.*;
+          import android.content.pm.*;
+          import android.graphics.drawable.GradientDrawable;
+          import android.net.Uri;
+          import android.net.VpnService;
+          import android.os.*;
+          import android.provider.Settings;
+          import android.view.*;
+          import android.widget.*;
+          import java.util.*;
+
+          public class MainActivity extends Activity {
+            static final int REQ_VPN = 7;
+            static final int BG = 0xFF0A0F1F, CARD = 0xFF141A2E, CARD2 = 0xFF1B2340, ACC = 0xFF22D3EE, TXT = 0xFFEEF1F8, MUT = 0xFF8B93AD;
+            SharedPreferences prefs; LinearLayout list; String pendingPkg; boolean pendingBlock;
+            int dp(float v) { return (int) (v * getResources().getDisplayMetrics().density); }
+            GradientDrawable bg(int c, float r) { GradientDrawable g = new GradientDrawable(); g.setColor(c); g.setCornerRadius(dp(r)); return g; }
+            TextView tv(String t, float s, int c) { TextView v = new TextView(this); v.setText(t); v.setTextSize(s); v.setTextColor(c); return v; }
+
+            @Override protected void onCreate(Bundle b) {
+              super.onCreate(b);
+              prefs = getSharedPreferences("boost", MODE_PRIVATE);
+              getWindow().getDecorView().setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+              ScrollView sv = new ScrollView(this); sv.setBackgroundColor(BG);
+              LinearLayout l = new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); l.setPadding(dp(16), dp(22), dp(16), dp(24));
+              sv.addView(l);
+              l.addView(tv("🎮 وضع اللعب", 26, ACC));
+              TextView sub = tv("اختار لعبة، واضغط «لعب». النت ينفصل عن كل التطبيقات الثانية ويبقى للعبة بس، وتطلعلك أيقونة فوق اللعبة بيها معلومات جهازك.", 13, MUT);
+              sub.setPadding(0, dp(4), 0, dp(14)); l.addView(sub);
+              list = new LinearLayout(this); list.setOrientation(LinearLayout.VERTICAL); l.addView(list);
+              setContentView(sv);
+              if (Build.VERSION.SDK_INT >= 33) requestPermissions(new String[]{ "android.permission.POST_NOTIFICATIONS" }, 1);
+              load();
+            }
+            static boolean isGame(ApplicationInfo a) {
+              if (Build.VERSION.SDK_INT >= 26 && a.category == ApplicationInfo.CATEGORY_GAME) return true;
+              return (a.flags & ApplicationInfo.FLAG_IS_GAME) != 0;
+            }
+            void load() {
+              new Thread(() -> {
+                PackageManager pm = getPackageManager();
+                Intent i = new Intent(Intent.ACTION_MAIN); i.addCategory(Intent.CATEGORY_LAUNCHER);
+                List<Object[]> apps = new ArrayList<>(); Set<String> seen = new HashSet<>();
+                for (ResolveInfo r : pm.queryIntentActivities(i, 0)) {
+                  ApplicationInfo a = r.activityInfo.applicationInfo;
+                  if (a.packageName.equals(getPackageName()) || !seen.add(a.packageName)) continue;
+                  if ((a.flags & ApplicationInfo.FLAG_SYSTEM) != 0 && !isGame(a)) continue;
+                  apps.add(new Object[]{ r.loadLabel(pm).toString(), a.packageName, r.loadIcon(pm), isGame(a) });
+                }
+                Collections.sort(apps, (x, y) -> {
+                  boolean gx = (Boolean) x[3], gy = (Boolean) y[3];
+                  if (gx != gy) return gx ? -1 : 1;
+                  return ((String) x[0]).compareToIgnoreCase((String) y[0]);
+                });
+                runOnUiThread(() -> show(apps));
+              }).start();
+            }
+            void show(List<Object[]> apps) {
+              list.removeAllViews();
+              boolean shownOthers = false;
+              list.addView(header("🕹 ألعابك"));
+              for (Object[] a : apps) {
+                if (!(Boolean) a[3] && !shownOthers) { shownOthers = true; list.addView(header("📱 تطبيقات ثانية (إذا لعبتك ما طلعت فوق)")); }
+                LinearLayout row = new LinearLayout(this); row.setGravity(Gravity.CENTER_VERTICAL); row.setPadding(dp(10), dp(10), dp(10), dp(10));
+                row.setBackground(bg(CARD, 14));
+                LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(-1, -2); rp.setMargins(0, 0, 0, dp(8)); row.setLayoutParams(rp);
+                ImageView ic = new ImageView(this); ic.setImageDrawable((android.graphics.drawable.Drawable) a[2]);
+                row.addView(ic, new LinearLayout.LayoutParams(dp(46), dp(46)));
+                TextView n = tv("  " + a[0], 16, TXT); row.addView(n, new LinearLayout.LayoutParams(0, -2, 1));
+                TextView play = tv("▶", 18, 0xFF04131A); play.setGravity(Gravity.CENTER); play.setBackground(bg(ACC, 20));
+                row.addView(play, new LinearLayout.LayoutParams(dp(40), dp(40)));
+                View.OnClickListener open = v -> ask((String) a[0], (String) a[1], (android.graphics.drawable.Drawable) a[2]);
+                row.setOnClickListener(open); play.setOnClickListener(open);
+                list.addView(row);
+              }
+            }
+            TextView header(String t) { TextView h = tv(t, 14, MUT); h.setPadding(dp(4), dp(10), 0, dp(6)); return h; }
+            void ask(String label, String pkg, android.graphics.drawable.Drawable icon) {
+              LinearLayout l = new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); l.setPadding(dp(20), dp(10), dp(20), 0);
+              CheckBox cb = new CheckBox(this); cb.setText("افصل النت عن كل التطبيقات الثانية (يبقى للعبة بس)"); cb.setChecked(prefs.getBoolean("block", true)); l.addView(cb);
+              TextView note = tv("أول مرة الجوال يطلب موافقة على «اتصال VPN». هذا هو الطريقة اللي يفصل بيها النت عن باقي التطبيقات، وما يطلع أي بيانات برا جوالك.", 12, 0xFF666666);
+              note.setPadding(0, dp(6), 0, 0); l.addView(note);
+              new AlertDialog.Builder(this).setIcon(icon).setTitle(label).setView(l)
+                .setPositiveButton("▶ لعب", (x, y) -> { prefs.edit().putBoolean("block", cb.isChecked()).apply(); play(pkg, cb.isChecked()); })
+                .setNegativeButton("إلغاء", null).show();
+            }
+            void play(String pkg, boolean block) {
+              if (!Settings.canDrawOverlays(this)) {
+                Toast.makeText(this, "فعّل «الظهور فوق التطبيقات» وارجع اضغط لعب", Toast.LENGTH_LONG).show();
+                startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName())));
+                return;
+              }
+              pendingPkg = pkg; pendingBlock = block;
+              if (block) {
+                Intent prep = VpnService.prepare(this);
+                if (prep != null) { startActivityForResult(prep, REQ_VPN); return; }
+              }
+              launch();
+            }
+            @Override protected void onActivityResult(int req, int res, Intent data) {
+              if (req != REQ_VPN) return;
+              if (res != RESULT_OK) { Toast.makeText(this, "بدون موافقة الـ VPN ما أكدر أفصل النت، راح تشتغل اللعبة عادي", Toast.LENGTH_LONG).show(); pendingBlock = false; }
+              launch();
+            }
+            void launch() {
+              String pkg = pendingPkg; if (pkg == null) return;
+              if (pendingBlock) startService(new Intent(this, BlockVpn.class).putExtra("pkg", pkg));
+              Intent ov = new Intent(this, OverlayService.class).putExtra("pkg", pkg).putExtra("block", pendingBlock);
+              if (Build.VERSION.SDK_INT >= 26) startForegroundService(ov); else startService(ov);
+              Intent g = getPackageManager().getLaunchIntentForPackage(pkg);
+              if (g == null) { Toast.makeText(this, "ما كدرت أفتح اللعبة", Toast.LENGTH_LONG).show(); return; }
+              new Handler(Looper.getMainLooper()).postDelayed(() -> startActivity(g), 500);
+            }
+          }
+          EOF
+          cat > $J/BlockVpn.java <<'EOF'
+          package com.gameboost.app;
+          import android.content.Intent;
+          import android.net.VpnService;
+          import android.os.ParcelFileDescriptor;
+          import java.io.FileInputStream;
+
+          /* «جدار ناري» محلي: كل التطبيقات تمر بهذا الـ VPN وتنحذف بياناتها، ماعدا اللعبة (وهذا التطبيق) تطلع للنت عادي */
+          public class BlockVpn extends VpnService {
+            static volatile boolean running = false;
+            ParcelFileDescriptor tun; Thread reader;
+
+            @Override public int onStartCommand(Intent i, int f, int id) {
+              if (i != null && "stop".equals(i.getAction())) { shutdown(); stopSelf(); return START_NOT_STICKY; }
+              String pkg = i == null ? null : i.getStringExtra("pkg");
+              shutdown();
+              try {
+                Builder b = new Builder();
+                b.setSession("وضع اللعب: النت للعبة بس");
+                b.addAddress("10.111.0.1", 32); b.addRoute("0.0.0.0", 0);
+                try { b.addAddress("fd00:1:fd00:1::1", 128); b.addRoute("::", 0); } catch (Exception ignored) {}
+                try { b.addDisallowedApplication(getPackageName()); } catch (Exception ignored) {}
+                if (pkg != null) try { b.addDisallowedApplication(pkg); } catch (Exception ignored) {}
+                b.setBlocking(true);
+                tun = b.establish();
+                running = tun != null;
+                if (tun != null) {
+                  final FileInputStream in = new FileInputStream(tun.getFileDescriptor());
+                  reader = new Thread(() -> {
+                    byte[] buf = new byte[32767];
+                    try { while (running && in.read(buf) >= 0) { /* نرمي الحزم = النت مفصول */ } } catch (Exception ignored) {}
+                  });
+                  reader.start();
+                }
+              } catch (Exception e) { running = false; }
+              return START_STICKY;
+            }
+            void shutdown() {
+              running = false;
+              try { if (tun != null) tun.close(); } catch (Exception ignored) {}
+              tun = null;
+            }
+            @Override public void onRevoke() { shutdown(); stopSelf(); }
+            @Override public void onDestroy() { shutdown(); super.onDestroy(); }
+          }
+          EOF
+          cat > $J/OverlayService.java <<'EOF'
+          package com.gameboost.app;
+          import android.app.*;
+          import android.content.*;
+          import android.content.pm.*;
+          import android.graphics.PixelFormat;
+          import android.graphics.drawable.GradientDrawable;
+          import android.net.TrafficStats;
+          import android.os.*;
+          import android.view.*;
+          import android.widget.*;
+          import java.util.*;
+
+          public class OverlayService extends Service {
+            WindowManager wm; TextView bubble; LinearLayout panel; WindowManager.LayoutParams bp, pp;
+            TextView tBattery, tScreen, tNet, tBlock, tExtra; Button bExtra;
+            boolean panelShown = false, extra = false, block = false; String pkg;
+            long lastRx = -1, lastTx = -1, lastT = 0;
+            final Handler ui = new Handler(Looper.getMainLooper());
+            int dp(float v) { return (int) (v * getResources().getDisplayMetrics().density); }
+            int type() { return Build.VERSION.SDK_INT >= 26 ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY : WindowManager.LayoutParams.TYPE_PHONE; }
+            GradientDrawable bg(int c, float r) { GradientDrawable g = new GradientDrawable(); g.setColor(c); g.setCornerRadius(dp(r)); return g; }
+            @Override public IBinder onBind(Intent i) { return null; }
+
+            @Override public int onStartCommand(Intent i, int f, int id) {
+              if (i != null && "stop".equals(i.getAction())) { endAll(); return START_NOT_STICKY; }
+              startFg();
+              if (i != null) { pkg = i.getStringExtra("pkg"); block = i.getBooleanExtra("block", false); }
+              if (bubble == null) build();
+              return START_NOT_STICKY;
+            }
+            void startFg() {
+              NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+              Notification.Builder nb;
+              if (Build.VERSION.SDK_INT >= 26) { nm.createNotificationChannel(new NotificationChannel("g", "وضع اللعب", NotificationManager.IMPORTANCE_LOW)); nb = new Notification.Builder(this, "g"); }
+              else nb = new Notification.Builder(this);
+              PendingIntent pi = PendingIntent.getService(this, 0, new Intent(this, OverlayService.class).setAction("stop"), PendingIntent.FLAG_IMMUTABLE);
+              Notification n = nb.setContentTitle("🎮 وضع اللعب شغّال").setContentText("اضغط هنا للإنهاء ورجوع النت لكل التطبيقات")
+                .setSmallIcon(android.R.drawable.ic_media_play).setContentIntent(pi).build();
+              if (Build.VERSION.SDK_INT >= 34) startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE); else startForeground(1, n);
+            }
+
+            /* ---------- الأيقونة العائمة واللوحة ---------- */
+            void build() {
+              wm = (WindowManager) getSystemService(WINDOW_SERVICE);
+              bubble = new TextView(this); bubble.setText("🎮"); bubble.setTextSize(17); bubble.setGravity(Gravity.CENTER); bubble.setAlpha(0.92f);
+              paintBubble();
+              bp = new WindowManager.LayoutParams(dp(44), dp(44), type(), WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT);
+              bp.gravity = Gravity.TOP | Gravity.START; bp.x = dp(4); bp.y = dp(160);
+              bubble.setOnTouchListener(new View.OnTouchListener() {
+                int sx, sy; float tx, ty; boolean moved;
+                @Override public boolean onTouch(View v, MotionEvent e) {
+                  switch (e.getAction()) {
+                    case MotionEvent.ACTION_DOWN: sx = bp.x; sy = bp.y; tx = e.getRawX(); ty = e.getRawY(); moved = false; return true;
+                    case MotionEvent.ACTION_MOVE:
+                      int dx = (int) (e.getRawX() - tx), dy = (int) (e.getRawY() - ty);
+                      if (Math.abs(dx) > dp(6) || Math.abs(dy) > dp(6)) moved = true;
+                      bp.x = sx + dx; bp.y = sy + dy; wm.updateViewLayout(bubble, bp); if (panelShown) placePanel(); return true;
+                    case MotionEvent.ACTION_UP: if (!moved) togglePanel(); return true;
+                  }
+                  return false;
+                }
+              });
+              wm.addView(bubble, bp);
+
+              panel = new LinearLayout(this); panel.setOrientation(LinearLayout.VERTICAL); panel.setPadding(dp(12), dp(10), dp(12), dp(10));
+              panel.setBackground(bg(0xF00A0F1F, 16)); panel.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+              TextView title = row("🎮 وضع اللعب", 15, 0xFF22D3EE); panel.addView(title);
+              tBattery = row("", 13, 0xFFEEF1F8); tScreen = row("", 13, 0xFFEEF1F8); tNet = row("", 13, 0xFFEEF1F8); tBlock = row("", 12, 0xFF8B93AD);
+              panel.addView(tBattery); panel.addView(tScreen); panel.addView(tNet); panel.addView(tBlock);
+              bExtra = button("⚡ إكسترا: مطفي", 0xFF1B2340, v -> toggleExtra()); panel.addView(bExtra);
+              tExtra = row("", 11, 0xFF8B93AD); panel.addView(tExtra);
+              panel.addView(button("🧹 سكّر التطبيقات بالخلفية", 0xFF1B2340, v -> cleanBackground()));
+              panel.addView(button("⏹ إنهاء وضع اللعب", 0xFF4C1414, v -> endAll()));
+              pp = new WindowManager.LayoutParams(dp(250), WindowManager.LayoutParams.WRAP_CONTENT, type(), WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT);
+              pp.gravity = Gravity.TOP | Gravity.START;
+              ui.post(tick);
+            }
+            TextView row(String t, float s, int c) { TextView v = new TextView(this); v.setText(t); v.setTextSize(s); v.setTextColor(c); v.setPadding(0, dp(3), 0, dp(3)); return v; }
+            Button button(String t, int c, View.OnClickListener l) {
+              Button b = new Button(this); b.setText(t); b.setAllCaps(false); b.setTextSize(13); b.setTextColor(0xFFEEF1F8); b.setBackground(bg(c, 12));
+              LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, dp(42)); lp.setMargins(0, dp(6), 0, 0); b.setLayoutParams(lp); b.setOnClickListener(l); return b;
+            }
+            void paintBubble() {
+              GradientDrawable g = new GradientDrawable(); g.setShape(GradientDrawable.OVAL);
+              g.setColor(extra ? 0xFFF59E0B : 0xFF22D3EE); g.setStroke(dp(2), 0xFF0A0F1F); bubble.setBackground(g);
+            }
+            void placePanel() {
+              int sw = getResources().getDisplayMetrics().widthPixels;
+              pp.x = bp.x + dp(50) + dp(250) > sw ? Math.max(0, bp.x - dp(254)) : bp.x + dp(50);
+              pp.y = Math.max(0, bp.y - dp(10));
+              if (panelShown) wm.updateViewLayout(panel, pp);
+            }
+            void togglePanel() {
+              if (panelShown) { wm.removeView(panel); panelShown = false; return; }
+              placePanel(); wm.addView(panel, pp); panelShown = true; update();
+              wm.removeView(bubble); wm.addView(bubble, bp);
+            }
+
+            /* ---------- المعلومات الحية ---------- */
+            final Runnable tick = new Runnable() { @Override public void run() { update(); ui.postDelayed(this, 1000); } };
+            void update() {
+              Intent bat = registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+              long now = SystemClock.elapsedRealtime(), rx = TrafficStats.getTotalRxBytes(), tx = TrafficStats.getTotalTxBytes();
+              String down = "—", up = "—";
+              if (lastRx >= 0 && now > lastT && rx != TrafficStats.UNSUPPORTED) {
+                double sec = (now - lastT) / 1000.0; down = speed((rx - lastRx) / sec); up = speed((tx - lastTx) / sec);
+              }
+              lastRx = rx; lastTx = tx; lastT = now;
+              if (!panelShown) return;
+              if (bat != null) {
+                int lvl = bat.getIntExtra(BatteryManager.EXTRA_LEVEL, -1), scale = bat.getIntExtra(BatteryManager.EXTRA_SCALE, 100);
+                int plugged = bat.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0); float temp = bat.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) / 10f;
+                int pct = scale > 0 ? lvl * 100 / scale : lvl;
+                tBattery.setText("🔋 الشحن: " + pct + "%" + (plugged != 0 ? " ⚡ يشحن" : "") + " · 🌡 " + String.format(Locale.US, "%.1f", temp) + "°");
+              }
+              Display d = wm.getDefaultDisplay();
+              float max = 0; for (Display.Mode m : d.getSupportedModes()) max = Math.max(max, m.getRefreshRate());
+              tScreen.setText("🖥 تحديث الشاشة: " + Math.round(d.getRefreshRate()) + " Hz (أقصى جوالك " + Math.round(max) + " Hz)");
+              tNet.setText("📶 سرعة النت: ⬇ " + down + "  ⬆ " + up);
+              tBlock.setText(block ? (BlockVpn.running ? "🛡 النت مفصول عن باقي التطبيقات ✅" : "🛡 فصل النت ما اشتغل") : "🛡 فصل النت مطفي");
+            }
+            static String speed(double bps) {
+              if (bps < 0) bps = 0;
+              if (bps >= 1_000_000) return String.format(Locale.US, "%.1f MB/s", bps / 1_000_000);
+              return String.format(Locale.US, "%.0f KB/s", bps / 1000);
+            }
+
+            /* ---------- إكسترا: أعلى تحديث شاشة + الشاشة تبقى شغالة + تسكير الخلفية ---------- */
+            void toggleExtra() {
+              extra = !extra;
+              Display d = wm.getDefaultDisplay();
+              if (extra) {
+                Display.Mode cur = d.getMode(), best = cur;
+                for (Display.Mode m : d.getSupportedModes())
+                  if (m.getPhysicalWidth() == cur.getPhysicalWidth() && m.getPhysicalHeight() == cur.getPhysicalHeight() && m.getRefreshRate() > best.getRefreshRate()) best = m;
+                bp.preferredDisplayModeId = best.getModeId(); bp.preferredRefreshRate = best.getRefreshRate();
+                bp.flags |= WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON;
+                int n = cleanBackgroundCount();
+                tExtra.setText("طلبت " + Math.round(best.getRefreshRate()) + " Hz، الشاشة ما تطفى، وتسكّر " + n + " تطبيق بالخلفية.");
+              } else {
+                bp.preferredDisplayModeId = 0; bp.preferredRefreshRate = 0;
+                bp.flags &= ~WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON;
+                tExtra.setText("");
+              }
+              wm.updateViewLayout(bubble, bp);
+              bExtra.setText(extra ? "⚡ إكسترا: شغّال" : "⚡ إكسترا: مطفي");
+              bExtra.setBackground(bg(extra ? 0xFFB45309 : 0xFF1B2340, 12));
+              paintBubble();
+            }
+            int cleanBackgroundCount() {
+              ActivityManager am = (ActivityManager) getSystemService(ACTIVITY_SERVICE); int n = 0;
+              for (ApplicationInfo a : getPackageManager().getInstalledApplications(0)) {
+                if ((a.flags & ApplicationInfo.FLAG_SYSTEM) != 0 || a.packageName.equals(getPackageName()) || a.packageName.equals(pkg)) continue;
+                try { am.killBackgroundProcesses(a.packageName); n++; } catch (Exception ignored) {}
+              }
+              return n;
+            }
+            void cleanBackground() { int n = cleanBackgroundCount(); Toast.makeText(this, "🧹 طلبت تسكير " + n + " تطبيق بالخلفية", Toast.LENGTH_SHORT).show(); }
+
+            void endAll() {
+              if (block) startService(new Intent(this, BlockVpn.class).setAction("stop"));
+              Toast.makeText(this, "انتهى وضع اللعب، رجع النت لكل التطبيقات", Toast.LENGTH_SHORT).show();
+              stopSelf();
+            }
+            @Override public void onDestroy() {
+              ui.removeCallbacksAndMessages(null);
+              try { if (panelShown) wm.removeView(panel); } catch (Exception ignored) {}
+              try { if (bubble != null) wm.removeView(bubble); } catch (Exception ignored) {}
+              super.onDestroy();
+            }
+          }
+          EOF
+
+      - name: Build APK
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Rename APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk GameMode.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GameMode
+          path: GameMode.apk
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          name: وضع اللعب v${{ github.run_number }}
+          files: GameMode.apk
