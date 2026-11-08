@@ -1,4 +1,4 @@
-
+name: Build APK
 on:
   push:
   workflow_dispatch:
@@ -21,7 +21,56 @@ jobs:
           P=app/src/main
           J=$P/java/com/gameboost/app
           rm -rf app
-          mkdir -p $J
+          mkdir -p $J $P/res/drawable $P/res/mipmap-anydpi-v26
+          cat > key.b64 <<'EOF'
+          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
+          AwQUbPFXsJn8cqxdWmliJqdHC65y8fYCAicQ
+          EOF
+          base64 -d key.b64 > key.p12
           cat > settings.gradle <<'EOF'
           pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
           dependencyResolutionManagement { repositories { google(); mavenCentral() } }
@@ -44,14 +93,89 @@ jobs:
               applicationId 'com.gameboost.app'
               minSdk 26
               targetSdk 34
-              versionCode 1
-              versionName '1.0'
+              versionCode 2
+              versionName '1.1'
+            }
+            signingConfigs {
+              debug {
+                storeType 'PKCS12'
+                storeFile file('../key.p12')
+                storePassword 'gamemode'
+                keyAlias 'gm'
+                keyPassword 'gamemode'
+              }
             }
             compileOptions {
               sourceCompatibility JavaVersion.VERSION_17
               targetCompatibility JavaVersion.VERSION_17
             }
           }
+          EOF
+          cat > $P/res/drawable/ic_bg.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:aapt="http://schemas.android.com/aapt"
+              android:width="108dp" android:height="108dp"
+              android:viewportWidth="108" android:viewportHeight="108">
+            <path android:pathData="M0,0 H108 V108 H0 Z">
+              <aapt:attr name="android:fillColor">
+                <gradient android:type="linear" android:startX="0" android:startY="0" android:endX="108" android:endY="108">
+                  <item android:offset="0" android:color="#FF16233F"/>
+                  <item android:offset="0.5" android:color="#FF0B1226"/>
+                  <item android:offset="1" android:color="#FF05080F"/>
+                </gradient>
+              </aapt:attr>
+            </path>
+            <path android:pathData="M30,24 a50,50 0 1,0 100,0 a50,50 0 1,0 -100,0 Z">
+              <aapt:attr name="android:fillColor">
+                <gradient android:type="radial" android:centerX="80" android:centerY="24" android:gradientRadius="50">
+                  <item android:offset="0" android:color="#7322D3EE"/>
+                  <item android:offset="1" android:color="#0022D3EE"/>
+                </gradient>
+              </aapt:attr>
+            </path>
+          </vector>
+          EOF
+          cat > $P/res/drawable/ic_fg.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:aapt="http://schemas.android.com/aapt"
+              android:width="108dp" android:height="108dp"
+              android:viewportWidth="108" android:viewportHeight="108">
+            <path android:fillType="evenOdd" android:pathData="M38,38 L70,38 A16,16 0 0 1 70,70 L38,70 A16,16 0 0 1 38,38 Z M36.4,43.44 L46,43.44 L46,49.2 L51.76,49.2 L51.76,58.8 L46,58.8 L46,64.56 L36.4,64.56 L36.4,58.8 L30.64,58.8 L30.64,49.2 L36.4,49.2 Z M62.48,49.2 a4.32,4.32 0 1,0 8.64,0 a4.32,4.32 0 1,0 -8.64,0 Z M70.8,59.12 a4.32,4.32 0 1,0 8.64,0 a4.32,4.32 0 1,0 -8.64,0 Z">
+              <aapt:attr name="android:fillColor">
+                <gradient android:type="linear" android:startX="30" android:startY="36" android:endX="80" android:endY="72">
+                  <item android:offset="0" android:color="#FF6CEEF8"/>
+                  <item android:offset="1" android:color="#FF4C6FFF"/>
+                </gradient>
+              </aapt:attr>
+            </path>
+          </vector>
+          EOF
+          cat > $P/res/drawable/ic_mono.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp" android:height="108dp"
+              android:viewportWidth="108" android:viewportHeight="108">
+            <path android:fillType="evenOdd" android:fillColor="#FFFFFFFF" android:pathData="M38,38 L70,38 A16,16 0 0 1 70,70 L38,70 A16,16 0 0 1 38,38 Z M36.4,43.44 L46,43.44 L46,49.2 L51.76,49.2 L51.76,58.8 L46,58.8 L46,64.56 L36.4,64.56 L36.4,58.8 L30.64,58.8 L30.64,49.2 L36.4,49.2 Z M62.48,49.2 a4.32,4.32 0 1,0 8.64,0 a4.32,4.32 0 1,0 -8.64,0 Z M70.8,59.12 a4.32,4.32 0 1,0 8.64,0 a4.32,4.32 0 1,0 -8.64,0 Z"/>
+          </vector>
+          EOF
+          cat > $P/res/drawable/ic_stat.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="24dp" android:height="24dp"
+              android:viewportWidth="24" android:viewportHeight="24">
+            <path android:fillType="evenOdd" android:fillColor="#FFFFFFFF"
+                android:pathData="M7,7 H17 A5,5 0 0 1 17,17 H7 A5,5 0 0 1 7,7 Z M6.5,8.7 L9.5,8.7 L9.5,10.5 L11.3,10.5 L11.3,13.5 L9.5,13.5 L9.5,15.3 L6.5,15.3 L6.5,13.5 L4.7,13.5 L4.7,10.5 L6.5,10.5 Z M14.65,10.5 a1.35,1.35 0 1,0 2.7,0 a1.35,1.35 0 1,0 -2.7,0 Z M17.25,13.6 a1.35,1.35 0 1,0 2.7,0 a1.35,1.35 0 1,0 -2.7,0 Z"/>
+          </vector>
+          EOF
+          cat > $P/res/mipmap-anydpi-v26/ic_launcher.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+            <background android:drawable="@drawable/ic_bg"/>
+            <foreground android:drawable="@drawable/ic_fg"/>
+            <monochrome android:drawable="@drawable/ic_mono"/>
+          </adaptive-icon>
           EOF
           cat > $P/AndroidManifest.xml <<'EOF'
           <?xml version="1.0" encoding="utf-8"?>
@@ -62,7 +186,7 @@ jobs:
             <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
             <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"/>
             <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES"/>
-            <application android:label="وضع اللعب" android:icon="@android:drawable/ic_media_play"
+            <application android:label="وضع اللعب" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher"
                 android:theme="@android:style/Theme.Material.NoActionBar" android:supportsRtl="true">
               <activity android:name=".MainActivity" android:exported="true">
                 <intent-filter>
@@ -243,6 +367,89 @@ jobs:
             @Override public void onDestroy() { shutdown(); super.onDestroy(); }
           }
           EOF
+          cat > $J/Bubble.java <<'EOF'
+          package com.gameboost.app;
+          import android.content.Context;
+          import android.graphics.*;
+          import android.view.View;
+          
+          /* أيقونة عائمة بشكل زجاجي: دائرة متدرجة + لمعة فوقانية + حافة مضيئة + يد تحكم مرسومة */
+          public class Bubble extends View {
+            final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+            final Path gp = new Path(), clip = new Path();
+            final RectF rf = new RectF();
+            boolean extra = false, pulsing = false;
+            long t0 = 0; float d;
+            final Runnable anim = new Runnable() { @Override public void run() { invalidate(); if (pulsing) postDelayed(this, 40); } };
+          
+            public Bubble(Context c) { super(c); d = c.getResources().getDisplayMetrics().density; }
+          
+            public void setExtra(boolean e) {
+              extra = e; pulsing = e; removeCallbacks(anim);
+              if (e) { t0 = System.currentTimeMillis(); post(anim); }
+              invalidate();
+            }
+            @Override protected void onDetachedFromWindow() { removeCallbacks(anim); super.onDetachedFromWindow(); }
+          
+            @Override protected void onDraw(Canvas c) {
+              float w = getWidth(), h = getHeight(), cx = w / 2f, cy = h / 2f;
+              float R = Math.min(w, h) / 2f * 0.70f;
+              int c1 = extra ? 0xFFFFC24A : 0xFF4BE3F2;
+              int c2 = extra ? 0xFFFF6A2C : 0xFF4C6FFF;
+          
+              /* نبضة حول الأيقونة وقت إكسترا */
+              if (pulsing) {
+                float ph = ((System.currentTimeMillis() - t0) % 1500L) / 1500f;
+                p.reset(); p.setAntiAlias(true); p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(2f * d);
+                p.setColor(c1); p.setAlpha((int) (130 * (1f - ph)));
+                c.drawCircle(cx, cy, R + ph * R * 0.40f, p);
+              }
+          
+              /* هالة خارجية ناعمة */
+              p.reset(); p.setAntiAlias(true); p.setStyle(Paint.Style.FILL);
+              int in = (c1 & 0x00FFFFFF) | 0x59000000, out = c1 & 0x00FFFFFF;
+              p.setShader(new RadialGradient(cx, cy, R * 1.40f, new int[]{in, in, out}, new float[]{0f, 0.64f, 1f}, Shader.TileMode.CLAMP));
+              c.drawCircle(cx, cy, R * 1.40f, p);
+          
+              /* جسم زجاجي متدرج */
+              p.setShader(new LinearGradient(cx - R, cy - R, cx + R, cy + R, c1, c2, Shader.TileMode.CLAMP));
+              c.drawCircle(cx, cy, R, p);
+          
+              /* لمعة من فوق */
+              c.save();
+              clip.reset(); clip.addCircle(cx, cy, R, Path.Direction.CW); c.clipPath(clip);
+              p.setShader(new LinearGradient(cx, cy - R, cx, cy + R * 0.25f, 0x73FFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP));
+              c.drawCircle(cx, cy, R, p);
+              c.restore();
+          
+              /* حافة مضيئة */
+              p.setShader(null); p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(1.3f * d); p.setColor(0x8CFFFFFF);
+              c.drawCircle(cx, cy, R - 0.65f * d, p);
+          
+              glyph(c, cx, cy, R * 1.10f);
+            }
+          
+            /* يد التحكم: جسم بيضوي، وفتحات الدي-باد والأزرار تبيّن لون الخلفية */
+            void glyph(Canvas c, float cx, float cy, float bw) {
+              float bh = bw * 0.54f, l = cx - bw / 2f, t = cy - bh / 2f;
+              gp.reset(); gp.setFillType(Path.FillType.EVEN_ODD);
+              rf.set(l, t, l + bw, t + bh);
+              gp.addRoundRect(rf, bh / 2f, bh / 2f, Path.Direction.CW);
+              float px = l + bw * 0.30f, th = bh * 0.15f, arm = bh * 0.33f;
+              float x0 = px - th, x1 = px + th, y0 = cy - arm, y1 = cy + arm;
+              float a0 = px - arm, a1 = px + arm, b0 = cy - th, b1 = cy + th;
+              gp.moveTo(x0, y0); gp.lineTo(x1, y0); gp.lineTo(x1, b0); gp.lineTo(a1, b0);
+              gp.lineTo(a1, b1); gp.lineTo(x1, b1); gp.lineTo(x1, y1); gp.lineTo(x0, y1);
+              gp.lineTo(x0, b1); gp.lineTo(a0, b1); gp.lineTo(a0, b0); gp.lineTo(x0, b0);
+              gp.close();
+              float br = bh * 0.135f;
+              gp.addCircle(l + bw * 0.70f, cy - bh * 0.15f, br, Path.Direction.CW);
+              gp.addCircle(l + bw * 0.83f, cy + bh * 0.16f, br, Path.Direction.CW);
+              p.setStyle(Paint.Style.FILL); p.setShader(null); p.setColor(0xFF071024);
+              c.drawPath(gp, p);
+            }
+          }
+          EOF
           cat > $J/OverlayService.java <<'EOF'
           package com.gameboost.app;
           import android.app.*;
@@ -255,18 +462,21 @@ jobs:
           import android.view.*;
           import android.widget.*;
           import java.util.*;
-
+          
           public class OverlayService extends Service {
-            WindowManager wm; TextView bubble; LinearLayout panel; WindowManager.LayoutParams bp, pp;
-            TextView tBattery, tScreen, tNet, tBlock, tExtra; Button bExtra;
+            WindowManager wm; Bubble bubble; LinearLayout panel; View dim;
+            WindowManager.LayoutParams bp, pp, dp2;
+            TextView tBattery, tScreen, tNet, tBlock, tExtra, tDark; Button bExtra; SeekBar sbDark;
             boolean panelShown = false, extra = false, block = false; String pkg;
+            int dark = 0;
             long lastRx = -1, lastTx = -1, lastT = 0;
+            SharedPreferences sp;
             final Handler ui = new Handler(Looper.getMainLooper());
             int dp(float v) { return (int) (v * getResources().getDisplayMetrics().density); }
             int type() { return Build.VERSION.SDK_INT >= 26 ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY : WindowManager.LayoutParams.TYPE_PHONE; }
             GradientDrawable bg(int c, float r) { GradientDrawable g = new GradientDrawable(); g.setColor(c); g.setCornerRadius(dp(r)); return g; }
             @Override public IBinder onBind(Intent i) { return null; }
-
+          
             @Override public int onStartCommand(Intent i, int f, int id) {
               if (i != null && "stop".equals(i.getAction())) { endAll(); return START_NOT_STICKY; }
               startFg();
@@ -280,18 +490,30 @@ jobs:
               if (Build.VERSION.SDK_INT >= 26) { nm.createNotificationChannel(new NotificationChannel("g", "وضع اللعب", NotificationManager.IMPORTANCE_LOW)); nb = new Notification.Builder(this, "g"); }
               else nb = new Notification.Builder(this);
               PendingIntent pi = PendingIntent.getService(this, 0, new Intent(this, OverlayService.class).setAction("stop"), PendingIntent.FLAG_IMMUTABLE);
-              Notification n = nb.setContentTitle("🎮 وضع اللعب شغّال").setContentText("اضغط هنا للإنهاء ورجوع النت لكل التطبيقات")
-                .setSmallIcon(android.R.drawable.ic_media_play).setContentIntent(pi).build();
+              Notification n = nb.setContentTitle("وضع اللعب شغّال").setContentText("اضغط هنا للإنهاء ورجوع النت لكل التطبيقات")
+                .setSmallIcon(R.drawable.ic_stat).setContentIntent(pi).build();
               if (Build.VERSION.SDK_INT >= 34) startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE); else startForeground(1, n);
             }
-
+          
             /* ---------- الأيقونة العائمة واللوحة ---------- */
             void build() {
               wm = (WindowManager) getSystemService(WINDOW_SERVICE);
-              bubble = new TextView(this); bubble.setText("🎮"); bubble.setTextSize(17); bubble.setGravity(Gravity.CENTER); bubble.setAlpha(0.92f);
-              paintBubble();
-              bp = new WindowManager.LayoutParams(dp(44), dp(44), type(), WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT);
-              bp.gravity = Gravity.TOP | Gravity.START; bp.x = dp(4); bp.y = dp(160);
+              sp = getSharedPreferences("gm", MODE_PRIVATE);
+              dark = sp.getInt("dark", 0);
+          
+              /* طبقة الظلام تضاف أول حتى تبقى تحت الأيقونة واللوحة */
+              dim = new View(this);
+              dim.setBackgroundColor(dark * 255 / 100 << 24);
+              dp2 = new WindowManager.LayoutParams(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT, type(),
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, PixelFormat.TRANSLUCENT);
+              dp2.gravity = Gravity.TOP | Gravity.START;
+              if (Build.VERSION.SDK_INT >= 28) dp2.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS;
+              wm.addView(dim, dp2);
+          
+              bubble = new Bubble(this);
+              bp = new WindowManager.LayoutParams(dp(54), dp(54), type(), WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT);
+              bp.gravity = Gravity.TOP | Gravity.START; bp.x = dp(2); bp.y = dp(160);
               bubble.setOnTouchListener(new View.OnTouchListener() {
                 int sx, sy; float tx, ty; boolean moved;
                 @Override public boolean onTouch(View v, MotionEvent e) {
@@ -307,17 +529,30 @@ jobs:
                 }
               });
               wm.addView(bubble, bp);
-
+          
               panel = new LinearLayout(this); panel.setOrientation(LinearLayout.VERTICAL); panel.setPadding(dp(12), dp(10), dp(12), dp(10));
               panel.setBackground(bg(0xF00A0F1F, 16)); panel.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-              TextView title = row("🎮 وضع اللعب", 15, 0xFF22D3EE); panel.addView(title);
+              panel.addView(row("وضع اللعب", 15, 0xFF22D3EE));
               tBattery = row("", 13, 0xFFEEF1F8); tScreen = row("", 13, 0xFFEEF1F8); tNet = row("", 13, 0xFFEEF1F8); tBlock = row("", 12, 0xFF8B93AD);
               panel.addView(tBattery); panel.addView(tScreen); panel.addView(tNet); panel.addView(tBlock);
-              bExtra = button("⚡ إكسترا: مطفي", 0xFF1B2340, v -> toggleExtra()); panel.addView(bExtra);
+          
+              tDark = row("", 12, 0xFFEEF1F8); panel.addView(tDark);
+              sbDark = new SeekBar(this); sbDark.setMax(90); sbDark.setProgress(dark);
+              LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(-1, dp(32)); slp.setMargins(0, dp(2), 0, dp(4));
+              sbDark.setLayoutParams(slp);
+              sbDark.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                @Override public void onProgressChanged(SeekBar s, int v, boolean fromUser) { setDark(v); }
+                @Override public void onStartTrackingTouch(SeekBar s) {}
+                @Override public void onStopTrackingTouch(SeekBar s) {}
+              });
+              panel.addView(sbDark);
+              setDark(dark);
+          
+              bExtra = button("إكسترا: مطفي", 0xFF1B2340, v -> toggleExtra()); panel.addView(bExtra);
               tExtra = row("", 11, 0xFF8B93AD); panel.addView(tExtra);
-              panel.addView(button("🧹 سكّر التطبيقات بالخلفية", 0xFF1B2340, v -> cleanBackground()));
-              panel.addView(button("⏹ إنهاء وضع اللعب", 0xFF4C1414, v -> endAll()));
-              pp = new WindowManager.LayoutParams(dp(250), WindowManager.LayoutParams.WRAP_CONTENT, type(), WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT);
+              panel.addView(button("سكّر التطبيقات بالخلفية", 0xFF1B2340, v -> cleanBackground()));
+              panel.addView(button("إنهاء وضع اللعب", 0xFF4C1414, v -> endAll()));
+              pp = new WindowManager.LayoutParams(dp(252), WindowManager.LayoutParams.WRAP_CONTENT, type(), WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT);
               pp.gravity = Gravity.TOP | Gravity.START;
               ui.post(tick);
             }
@@ -326,22 +561,25 @@ jobs:
               Button b = new Button(this); b.setText(t); b.setAllCaps(false); b.setTextSize(13); b.setTextColor(0xFFEEF1F8); b.setBackground(bg(c, 12));
               LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, dp(42)); lp.setMargins(0, dp(6), 0, 0); b.setLayoutParams(lp); b.setOnClickListener(l); return b;
             }
-            void paintBubble() {
-              GradientDrawable g = new GradientDrawable(); g.setShape(GradientDrawable.OVAL);
-              g.setColor(extra ? 0xFFF59E0B : 0xFF22D3EE); g.setStroke(dp(2), 0xFF0A0F1F); bubble.setBackground(g);
-            }
             void placePanel() {
               int sw = getResources().getDisplayMetrics().widthPixels;
-              pp.x = bp.x + dp(50) + dp(250) > sw ? Math.max(0, bp.x - dp(254)) : bp.x + dp(50);
+              pp.x = bp.x + dp(58) + dp(252) > sw ? Math.max(0, bp.x - dp(256)) : bp.x + dp(58);
               pp.y = Math.max(0, bp.y - dp(10));
               if (panelShown) wm.updateViewLayout(panel, pp);
             }
             void togglePanel() {
               if (panelShown) { wm.removeView(panel); panelShown = false; return; }
               placePanel(); wm.addView(panel, pp); panelShown = true; update();
-              wm.removeView(bubble); wm.addView(bubble, bp);
             }
-
+          
+            /* ---------- فلتر الظلام: طبقة سوداء شفافة فوق اللعبة، 0 لـ 90% ---------- */
+            void setDark(int pct) {
+              dark = Math.max(0, Math.min(90, pct));
+              if (sp != null) sp.edit().putInt("dark", dark).apply();
+              if (dim != null) dim.setBackgroundColor(dark * 255 / 100 << 24);
+              if (tDark != null) tDark.setText(dark == 0 ? "ظلام الشاشة: مطفي" : "ظلام الشاشة: " + dark + "%");
+            }
+          
             /* ---------- المعلومات الحية ---------- */
             final Runnable tick = new Runnable() { @Override public void run() { update(); ui.postDelayed(this, 1000); } };
             void update() {
@@ -357,20 +595,20 @@ jobs:
                 int lvl = bat.getIntExtra(BatteryManager.EXTRA_LEVEL, -1), scale = bat.getIntExtra(BatteryManager.EXTRA_SCALE, 100);
                 int plugged = bat.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0); float temp = bat.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) / 10f;
                 int pct = scale > 0 ? lvl * 100 / scale : lvl;
-                tBattery.setText("🔋 الشحن: " + pct + "%" + (plugged != 0 ? " ⚡ يشحن" : "") + " · 🌡 " + String.format(Locale.US, "%.1f", temp) + "°");
+                tBattery.setText("الشحن: " + pct + "%" + (plugged != 0 ? " ⚡ يشحن" : "") + " · الحرارة " + String.format(Locale.US, "%.1f", temp) + "°");
               }
               Display d = wm.getDefaultDisplay();
               float max = 0; for (Display.Mode m : d.getSupportedModes()) max = Math.max(max, m.getRefreshRate());
-              tScreen.setText("🖥 تحديث الشاشة: " + Math.round(d.getRefreshRate()) + " Hz (أقصى جوالك " + Math.round(max) + " Hz)");
-              tNet.setText("📶 سرعة النت: ⬇ " + down + "  ⬆ " + up);
-              tBlock.setText(block ? (BlockVpn.running ? "🛡 النت مفصول عن باقي التطبيقات ✅" : "🛡 فصل النت ما اشتغل") : "🛡 فصل النت مطفي");
+              tScreen.setText("تحديث الشاشة: " + Math.round(d.getRefreshRate()) + " Hz (أقصى جوالك " + Math.round(max) + " Hz)");
+              tNet.setText("سرعة النت: ⬇ " + down + "  ⬆ " + up);
+              tBlock.setText(block ? (BlockVpn.running ? "النت مفصول عن باقي التطبيقات ✅" : "فصل النت ما اشتغل") : "فصل النت مطفي");
             }
             static String speed(double bps) {
               if (bps < 0) bps = 0;
               if (bps >= 1_000_000) return String.format(Locale.US, "%.1f MB/s", bps / 1_000_000);
               return String.format(Locale.US, "%.0f KB/s", bps / 1000);
             }
-
+          
             /* ---------- إكسترا: أعلى تحديث شاشة + الشاشة تبقى شغالة + تسكير الخلفية ---------- */
             void toggleExtra() {
               extra = !extra;
@@ -389,9 +627,9 @@ jobs:
                 tExtra.setText("");
               }
               wm.updateViewLayout(bubble, bp);
-              bExtra.setText(extra ? "⚡ إكسترا: شغّال" : "⚡ إكسترا: مطفي");
+              bExtra.setText(extra ? "إكسترا: شغّال" : "إكسترا: مطفي");
               bExtra.setBackground(bg(extra ? 0xFFB45309 : 0xFF1B2340, 12));
-              paintBubble();
+              bubble.setExtra(extra);
             }
             int cleanBackgroundCount() {
               ActivityManager am = (ActivityManager) getSystemService(ACTIVITY_SERVICE); int n = 0;
@@ -401,8 +639,8 @@ jobs:
               }
               return n;
             }
-            void cleanBackground() { int n = cleanBackgroundCount(); Toast.makeText(this, "🧹 طلبت تسكير " + n + " تطبيق بالخلفية", Toast.LENGTH_SHORT).show(); }
-
+            void cleanBackground() { int n = cleanBackgroundCount(); Toast.makeText(this, "طلبت تسكير " + n + " تطبيق بالخلفية", Toast.LENGTH_SHORT).show(); }
+          
             void endAll() {
               if (block) startService(new Intent(this, BlockVpn.class).setAction("stop"));
               Toast.makeText(this, "انتهى وضع اللعب، رجع النت لكل التطبيقات", Toast.LENGTH_SHORT).show();
@@ -412,6 +650,7 @@ jobs:
               ui.removeCallbacksAndMessages(null);
               try { if (panelShown) wm.removeView(panel); } catch (Exception ignored) {}
               try { if (bubble != null) wm.removeView(bubble); } catch (Exception ignored) {}
+              try { if (dim != null) wm.removeView(dim); } catch (Exception ignored) {}
               super.onDestroy();
             }
           }
@@ -434,3 +673,4 @@ jobs:
           tag_name: v${{ github.run_number }}
           name: وضع اللعب v${{ github.run_number }}
           files: GameMode.apk
+
